@@ -26,3 +26,13 @@ We use a modified MNIST data set for the experiment. The images are of size 64 x
     * `--digit int-value`: only generates the images containing the specified digit (0-9)
     * `--draw_box`: draws the specified bounding box into the generated images
 * generated images are stored under "generated_images"
+
+## Differences to the Paper
+* different data set used 
+    * modified MNIST for quicker/easier training
+    * as a result our network architecture is smaller (fewer layers and filters, etc)
+* we only use digit labels as conditional input (no image captions), therefore our networks are smaller and we require no additional layers to pre-process the image captions
+* Discriminator:
+    * input image and label are concatenated (along channel axis)
+    * two conv layers with stride two process the image 
+        * output of second conv layer: (16, 16, 64)
