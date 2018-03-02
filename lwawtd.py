@@ -22,20 +22,22 @@ from tb_visualization import *
 parser = argparse.ArgumentParser()
 parser.add_argument("--max_iter", help="Maximum number of iterations", type=int, default=20000)
 parser.add_argument("--batch_size", help="The size of the minibatch", type=int, default=64)
-parser.add_argument("--lr_d", help="Discriminator Learning Rate", type=float, default=2e-4)
-parser.add_argument("--lr_g", help="Generator/Encoder Learning Rate", type=float, default=2e-4)
+parser.add_argument("--lr_d", help="Discriminator Learning Rate", type=float, default=1e-4)
+parser.add_argument("--lr_g", help="Generator/Encoder Learning Rate", type=float, default=1e-4)
 parser.add_argument("--beta1_g", help="Generator Beta 1 (for Adam Optimizer)", type=float, default=0.5)
 parser.add_argument("--beta1_d", help="Discriminator Beta 1 (for Adam Optimizer)", type=float, default=0.5)
 parser.add_argument("--num_z", help="Number of noise variables", type=int, default=100)
 parser.add_argument("--d_activation", help="Activation function of Discriminator", type=str, default="lrelu")
 parser.add_argument("--g_activation", help="Activation function of Generator", type=str, default="relu")
-parser.add_argument("--dataset", help="Path to the data set you want to use", type=str, default="multi_mnist_data/1.tfrecords")
-parser.add_argument("--weight_init", help="Values for weight init method", type=int, default=4)
-parser.add_argument("--boundaries", help="Boundaries for LR decrease", type=int, default=1)
-parser.add_argument("--values", help="Values for LR decrease", type=int, default=1)
-parser.add_argument("--g_train", help="How often generator is trained during each iteration", type=int, default=2)
+parser.add_argument("--dataset", help="Path to the data set you want to use", type=str,
+                    default="positional_mnist_data/1.tfrecords")
+parser.add_argument("--weight_init", help="Values for weight init method", type=int, default=0)
+parser.add_argument("--boundaries", help="Boundaries for LR decrease", type=int, default=0)
+parser.add_argument("--values", help="Values for LR decrease", type=int, default=0)
+parser.add_argument("--g_train", help="How often generator is trained during each iteration", type=int, default=1)
 parser.add_argument("--eager", help="If eager execution is enabled", action="store_true")
 parser.add_argument("--timeline", help="If a timeline is created", action="store_true")
+parser.add_argument("--metadata", help="If metadata is logged (requires libcupti)", action="store_true")
 args = parser.parse_args()
 
 if args.eager:
@@ -213,7 +215,7 @@ def discriminate(image_input, label, bounding_box):
 
         ####################################################
         # global pathway
-        d_x_conv_global_0 = conv2d_bn_act(inputs=d_x_conv_1, filters=128, kernel_size=4, kernel_init=weight_init,
+        d_x_conv_global_0 = conv2d_bn_act(inputs=d_x_conv_1, filters=64, kernel_size=4, kernel_init=weight_init,
                                    activation=d_activation, strides=2)
 
         d_x_conv_global_1 = conv2d_bn_act(inputs=d_x_conv_global_0, filters=128, kernel_size=4, kernel_init=weight_init,
@@ -226,7 +228,7 @@ def discriminate(image_input, label, bounding_box):
         # reshape bounding box to (16, 16) resolution
         transf_matri = tf.map_fn(tf_compute_transformation_matrix, bounding_box)
         local_input = spatial_transformer_network(d_x_conv_1, transf_matri, (16, 16))
-        d_x_conv_local_0 = conv2d_bn_act(inputs=local_input, filters=128, kernel_size=4, kernel_init=weight_init,
+        d_x_conv_local_0 = conv2d_bn_act(inputs=local_input, filters=64, kernel_size=4, kernel_init=weight_init,
                                    activation=d_activation, strides=2)
         d_x_conv_local_1 = conv2d_bn_act(inputs=d_x_conv_local_0, filters=128, kernel_size=4, kernel_init=weight_init,
                                          activation=d_activation, strides=2)
@@ -252,14 +254,14 @@ def generate(noise_input, label, bounding_box):
 
         ####################################################
         # global pathway
-        g_conv_global_0 = deconv2d_bn_act(inputs=g_dense_0, filters=128, kernel_size=4, kernel_init=weight_init,
+        g_conv_global_0 = deconv2d_bn_act(inputs=g_dense_0, filters=64, kernel_size=4, kernel_init=weight_init,
                       activation=g_activation, strides=2)
         g_conv_global_1 = deconv2d_bn_act(inputs=g_conv_global_0, filters=64, kernel_size=4, kernel_init=weight_init,
                                  activation=g_activation, strides=2)
 
         ####################################################
         # local pathway
-        g_conv_local_0 = deconv2d_bn_act(inputs=g_dense_0, filters=128, kernel_size=4, kernel_init=weight_init,
+        g_conv_local_0 = deconv2d_bn_act(inputs=g_dense_0, filters=64, kernel_size=4, kernel_init=weight_init,
                       activation=g_activation, strides=2)
         g_conv_local_1 = deconv2d_bn_act(inputs=g_conv_local_0, filters=64, kernel_size=4, kernel_init=weight_init,
                                  activation=g_activation, strides=2)
@@ -272,9 +274,11 @@ def generate(noise_input, label, bounding_box):
         final_input = tf.concat((g_conv_global_1, g_conv_local_1), axis=3)
         g_conv_final = deconv2d_bn_act(inputs=final_input, filters=32, kernel_size=4, kernel_init=weight_init,
                                    activation=g_activation, strides=2)
-        g_conv_out = tf.layers.conv2d_transpose(inputs=g_conv_final, filters=IMG_CHANNELS, kernel_size=4,
+        g_conv_final_2 = deconv2d_bn_act(inputs=g_conv_final, filters=32, kernel_size=4, kernel_init=weight_init,
+                                       activation=g_activation, strides=2)
+        g_conv_out = tf.layers.conv2d_transpose(inputs=g_conv_final_2, filters=IMG_CHANNELS, kernel_size=4,
                                                 activation=tf.nn.sigmoid, padding='SAME',
-                                                strides=2, kernel_initializer=weight_init)
+                                                strides=1, kernel_initializer=weight_init)
 
         return g_conv_out
 
@@ -283,10 +287,6 @@ def generate(noise_input, label, bounding_box):
 with tf.device('/cpu:0'):
     # sample training data
     X, Y, bbox = sample_real_data(BATCH_SIZE)
-
-# z_mb, Y_gen, box_generated = sample_generator_input(BATCH_SIZE, Z_DIM)
-# queue = tf.FIFOQueue(capacity=1000, dtypes=[tf.float32, tf.int32, tf.int32], shapes=[[Z_DIM], [LABEL_DIM], [4]])
-# z, Y_, bbox_ = queue.dequeue()
 
 # image generated by generator G
 X_hat = generate(noise_input=z, label=Y_, bounding_box=bbox_)
@@ -336,10 +336,8 @@ tf.summary.scalar("G_loss", G_loss)
 tf.summary.scalar("D data accuracy", tf.reduce_mean(D_enc))
 tf.summary.scalar("D fake accuracy", tf.reduce_mean(1 - D_gen))
 summary_op_scalar = tf.summary.merge_all()
-
-# generated images visualized in tensorboard
-summary_z = summary(X_hat)
-summary_z_pos = summary(X_hat, title="imgs_position")
+summary_z_loc = summary(X_hat, title="generated_images_location")
+summary_z_size = summary(X_hat, title="generated_images_size")
 
 print("Initialize new session")
 sess = tf.Session()
@@ -351,6 +349,7 @@ sess.run(tf.global_variables_initializer())
 print("Start training")
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
 for iteration in range(1, MAX_ITER + 1):
     # train D and G
     if iteration % 1000 != 0:
@@ -358,37 +357,43 @@ for iteration in range(1, MAX_ITER + 1):
         _ = sess.run(D_solver, feed_dict={phase: 1, Y_: Y_gen, z: z_mb, bbox_: box_generated})
         for idx in range(args.g_train):
             z_mb, Y_gen, box_generated = sample_generator_input(BATCH_SIZE, Z_DIM)
-            _ = sess.run(G_solver, feed_dict={phase: 1, Y_: Y_gen, z: z_mb, bbox_: box_generated})
+            _ = sess.run(G_solver, feed_dict={phase: 1, Y_: Y_gen, z: z_mb, bbox_: box_generated}) #, Y_: Y_gen, z: z_mb, bbox_: box_generated
 
     # visualize training progress
     if iteration % 1000 == 0:
-        # log metadata for train step of D
-        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-        run_metadata = tf.RunMetadata()
-        summary, _ = sess.run([summary_op_scalar, D_solver], feed_dict={phase: 1, Y_: Y_gen, z: z_mb, bbox_: box_generated},
-                              options=run_options, run_metadata=run_metadata)
-        summary_writer.add_run_metadata(run_metadata, 'step%03d' % iteration)
+        z_mb, Y_gen, box_generated = sample_generator_input(BATCH_SIZE, Z_DIM)
+        if args.metadata:
+            # log metadata for train step of D
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            summary, _ = sess.run([summary_op_scalar, D_solver],
+                                  feed_dict={phase: 1, Y_: Y_gen, z: z_mb, bbox_: box_generated},
+                                  options=run_options, run_metadata=run_metadata)
+            summary_writer.add_run_metadata(run_metadata, 'step%03d' % iteration)
+        else:
+            summary, _ = sess.run([summary_op_scalar, D_solver],
+                                  feed_dict={phase: 1, Y_: Y_gen, z: z_mb, bbox_: box_generated})
 
         for idx in range(args.g_train):
             z_mb, Y_gen, box_generated = sample_generator_input(BATCH_SIZE, Z_DIM)
             _ = sess.run(G_solver, feed_dict={phase: 1, Y_: Y_gen, z: z_mb, bbox_: box_generated})
 
-        # visualize categorical variables via Tensorboard
-        z_mb, Y_gen, box_generated = sample_generator_input(100, Z_DIM)
-        _summary_z = sess.run(summary_z, feed_dict={phase: 0, Y_: Y_gen, z: z_mb, bbox_: box_generated})
+        # visualize generated images via Tensorboard
+        z_mb, Y_gen, box_generated = sample_generator_input(100, Z_DIM, sort_labels=True, sort_location=True)
+        _summary_z_loc = sess.run(summary_z_loc, feed_dict={phase: 0, Y_: Y_gen, z: z_mb, bbox_: box_generated})
 
-        # generate digits at different locations
-        z_mb, Y_gen, box_generated = sample_generator_input(100, Z_DIM, sorted=True)
-        _summary_z_pos = sess.run(summary_z_pos, feed_dict={phase: 0, Y_: Y_gen, z: z_mb, bbox_: box_generated})
+        z_mb, Y_gen, box_generated = sample_generator_input(100, Z_DIM, sort_labels=True, sort_location=True, sort_bbox_size=True)
+        _summary_z_size = sess.run(summary_z_size, feed_dict={phase: 0, Y_: Y_gen, z: z_mb, bbox_: box_generated})
 
         summary_writer.add_summary(summary, iteration)
-        summary_writer.add_summary(_summary_z, iteration)
-        summary_writer.add_summary(_summary_z_pos, iteration)
+        summary_writer.add_summary(_summary_z_loc, iteration)
+        summary_writer.add_summary(_summary_z_size, iteration)
         summary_writer.flush()
 
     # save model
     if iteration % 5000 == 0:
         if args.timeline:
+            run_metadata = tf.RunMetadata()
             trace = timeline.Timeline(step_stats=run_metadata.step_stats)
             with open(log_dir + '/timeline' + str(iteration) + '.ctf.json', 'w') as trace_file:
                 trace_file.write(trace.generate_chrome_trace_format())

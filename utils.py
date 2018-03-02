@@ -68,7 +68,7 @@ def sample_gen_data_position(batch_size, z_dim=100):
 
 def sample_gen_label(mb_size):
     labels = np.random.multinomial(1, 10*[0.1], size=mb_size)
-    return labels
+    return labels.astype(np.float32)
 
 
 def sample_bbox(mb_size):
@@ -85,7 +85,7 @@ def sample_bbox(mb_size):
     scale_box_y = np.random.randint(low=18, high=21, size=(mb_size, 1))
 
     boxes = np.concatenate((pos_box_x, pos_box_y, scale_box_x, scale_box_y), axis=1)
-    return boxes
+    return boxes.astype(np.float32)
 
 
 def tf_sample_label(mb_size):
@@ -105,7 +105,7 @@ def tf_sample_bbox(mb_size):
     return tf.cast(boxes, tf.float32)
 
 
-def sample_bbox_sorted(mb_size):
+def sample_bbox_sorted(mb_size, sort_size = False):
     pos_box_x = np.zeros((mb_size, 1))
     for idx in range(100):
         pos_box_x[idx, 0] = (idx % 10 + 1) * 4
@@ -114,27 +114,38 @@ def sample_bbox_sorted(mb_size):
     for idx in range(10):
         pos_box_y[idx * 10:idx * 10 + 10, 0] = (idx + 1) * 4
 
-    scale_box_x = np.random.randint(low=16, high=21, size=(mb_size, 1))
-    scale_box_y = np.random.randint(low=18, high=21, size=(mb_size, 1))
+    if sort_size:
+        scale_box_x = np.zeros((mb_size, 1))
+        for idx in range(100):
+            scale_box_x[idx, 0] = (idx % 10 + 1) + 10
+
+        scale_box_y = np.zeros((mb_size, 1))
+        for idx in range(10):
+            scale_box_y[idx * 10:idx * 10 + 10, 0] = (idx + 1) + 10
+    else:
+        scale_box_x = np.random.randint(low=16, high=21, size=(mb_size, 1))
+        scale_box_y = np.random.randint(low=18, high=21, size=(mb_size, 1))
 
     boxes = np.concatenate((pos_box_x, pos_box_y, scale_box_x, scale_box_y), axis=1)
-    return boxes
+    return boxes.astype(np.float32)
 
 
 def sample_gen_label_sorted(mb_size, label_dim=10):
     labels = np.zeros((mb_size, label_dim))
     for idx in range(label_dim):
         labels[idx*label_dim:idx*label_dim+label_dim, idx] = 1
-    return labels
+    return labels.astype(np.float32)
 
 
-def sample_generator_input(mb_size, n, sorted=False):
+def sample_generator_input(mb_size, n, sort_labels=False, sort_location=False, sort_bbox_size=False):
     _z = sample_z(mb_size, n)
-    _Y = sample_gen_label(mb_size)
-    if sorted:
-        _bbox = sample_bbox_sorted(mb_size)
+    _Y = sample_gen_label_sorted(mb_size) if sort_labels else sample_gen_label(mb_size)
+
+    if sort_bbox_size:
+        _bbox = sample_bbox_sorted(mb_size, sort_size=True)
     else:
-        _bbox = sample_bbox(mb_size)
+        _bbox = sample_bbox_sorted(mb_size) if sort_location else sample_bbox(mb_size)
+
 
     return _z, _Y, _bbox
 

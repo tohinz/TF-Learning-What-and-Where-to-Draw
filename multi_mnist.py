@@ -12,11 +12,6 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
 
-def show_image(image):
-    plt.imshow(image, cmap="gray", vmin=0.0, vmax=1.0)
-    plt.show()
-
-
 def read_image(path, max_intensity):
     image = nd.imread(path, mode="L")
     image = np.asarray(image, dtype=np.float32) / 255.0
@@ -34,68 +29,6 @@ def read_image(path, max_intensity):
             image = np.ones_like(image) * max_intensity
 
     return image
-
-
-def save_samples(samples=20, path="multi_mnist_data/1.tfrecords", bbox=False):
-    import scipy.misc
-
-    record_iterator = tf.python_io.tf_record_iterator(path=path)
-
-    for idx, string_record in enumerate(record_iterator):
-        example = tf.train.Example()
-        example.ParseFromString(string_record)
-
-        height = int(example.features.feature['height']
-                     .int64_list
-                     .value[0])
-
-        width = int(example.features.feature['width']
-                    .int64_list
-                    .value[0])
-
-        img_string = (example.features.feature['image']
-                      .bytes_list
-                      .value[0])
-
-        annotation_string = (example.features.feature['labels']
-                             .bytes_list
-                             .value[0])
-        positions = (example.features.feature['positions']
-                             .bytes_list
-                             .value[0])
-
-        boxes = (example.features.feature['boxes']
-                             .bytes_list
-                             .value[0])
-
-        annotation_1d = np.fromstring(annotation_string, dtype=np.int32)
-
-        boxes = np.fromstring(boxes, dtype=np.int32)
-
-        positions = np.fromstring(positions, dtype=np.int32)
-
-        # Annotations don't have depth (3rd dimension)
-        # reconstructed_annotation = annotation_1d.reshape((height, width))
-        print(idx, annotation_1d, positions, boxes)
-
-        img_1d = np.fromstring(img_string, dtype=np.float32)
-        reconstructed_img = img_1d.reshape((height, width))
-        if bbox:
-            # below
-            reconstructed_img[positions[1] + boxes[1], positions[0]:positions[0] + boxes[0]] = 0.8
-            # above
-            reconstructed_img[positions[1], positions[0]:positions[0] + boxes[0]] = 0.8
-            # left
-            reconstructed_img[positions[1]:positions[1] + boxes[1], positions[0]] = 0.8
-            # right
-            reconstructed_img[positions[1]:positions[1] + boxes[1], positions[0] + boxes[0]-1] = 0.8
-            # top left corner
-            # reconstructed_img[positions[1]:positions[1] + 5, positions[0]:positions[0] + 5] = 0.8
-        scipy.misc.imsave('outfiles/outfile_' + str(idx) + '.jpg', reconstructed_img)
-
-        if idx == samples:
-            exit()
-# save_samples(samples=20, bbox=True)
 
 
 def crop_non_empty(image):
@@ -230,12 +163,10 @@ def generate_multi_image(single_images, num_images, image_dim, canvas_dim, bg=No
 
                     if use_pixel_overlap and num_digits > 1:
                         canvas_with_buffer = add_buffer(canvas, gap) if gap > 0 else canvas
-                    transf_matr = compute_transformation_matrix(x, y, w, h)
 
                     placed_image_positions.extend([x, y])
                     placed_image_boxes.extend([w, h])
                     placed_image_ids.append(idx)
-                    placed_image_transf_matr.extend(transf_matr)
 
                     if i == num_images - 1:
                         ready = True
@@ -273,45 +204,11 @@ def write_to_records(filename, images, indices, positions, boxes, labels, digits
                     "boxes": _bytes_feature(np.asarray(boxes[index], dtype=np.int32).tostring()),
                     "labels": _bytes_feature(np.asarray(labels[index], dtype=np.int32).tostring()),
                     "image": _bytes_feature(np.ravel(images[index]).tostring()),
-                    "transf_matr": _bytes_feature(np.asarray(transf_matr[index], dtype=np.float32).tostring()),
                 }
             )
         )
         writer.write(example.SerializeToString())
     writer.close()
-
-
-def compute_transformation_matrix(x, y, w, h):
-    shape = 64.
-    t_x = (x+0.5*w-32)/32
-    t_y = (y+0.5*h-32)/32
-
-    scale_x = (w / shape)
-    scale_y = (h / shape)
-
-    transformation_matrix = np.zeros((2, 3))
-    transformation_matrix[0, 0] = scale_x
-    transformation_matrix[0, 2] = t_x # positive moves to left, negative moves to right
-    transformation_matrix[1, 1] = scale_y
-    transformation_matrix[1, 2] = t_y # positive moves to top, negative moves to bottom
-
-    return transformation_matrix
-
-
-
-def save_as_array(filename, images, indices, positions, boxes, labels, digits):
-    imgs = np.asarray(images)
-    imgs = np.reshape(imgs, (imgs.shape[0], imgs.shape[1]*imgs.shape[2]))
-    labels = np.asarray(labels)
-    positions = np.asarray(positions)
-    boxes = np.asarray(boxes)
-
-    print(filename, imgs.shape, labels.shape, positions.shape, boxes.shape)
-    # exit()
-
-    data = np.concatenate((imgs, labels, positions, boxes), axis=1)
-    print(data.shape)
-    np.save(filename+"_data_imgs_label_pos_box.npy", data)
 
 
 def shuffle_lists(*lists):
@@ -327,87 +224,15 @@ def shuffle_lists(*lists):
     return shuffled
 
 
-def read_and_decode(fqueue, batch_size, canvas_size, num_threads):
-    reader = tf.TFRecordReader()
-    key, value = reader.read(fqueue)
-
-    features = tf.parse_single_example(
-        value,
-        features={
-            'image': tf.FixedLenFeature([], tf.string),
-            'digits': tf.FixedLenFeature([], tf.int64),
-            'transf_matr': tf.FixedLenFeature([], tf.int64)
-        }
-    )
-
-    batch = tf.train.shuffle_batch(
-        [
-            tf.reshape(tf.decode_raw(features['image'], tf.float32), [canvas_size * canvas_size]),
-            tf.cast(features['digits'], tf.int32)
-        ],
-        batch_size=batch_size,
-        capacity=10000+batch_size*10,
-        min_after_dequeue=10000,
-        num_threads=num_threads
-    )
-
-    return batch
-
-
-def read_test_data(filename, shift_zero_digits_images=False):
-    record_iterator = tf.python_io.tf_record_iterator(path=filename)
-
-    images_list, digits_list = [], []
-    indices_list, positions_list = [], []
-    boxes_list, labels_list = [], []
-    for string_record in record_iterator:
-        example = tf.train.Example()
-        example.ParseFromString(string_record)
-
-        images_list.append(np.fromstring(example.features.feature['image'].bytes_list.value[0], dtype=np.float32))
-        digits_list.append(int(example.features.feature['digits'].int64_list.value[0]))
-
-        indices_list.append(np.fromstring(
-            example.features.feature['indices'].bytes_list.value[0],
-            dtype=np.int32
-        )[:digits_list[-1]])
-        positions_list.append(np.fromstring(
-            example.features.feature['positions'].bytes_list.value[0],
-            dtype=np.int32
-        )[:digits_list[-1]*2])
-        boxes_list.append(np.fromstring(
-            example.features.feature['boxes'].bytes_list.value[0],
-            dtype=np.int32
-        )[:digits_list[-1]*2])
-        labels_list.append(np.fromstring(
-            example.features.feature['labels'].bytes_list.value[0],
-            dtype=np.int32
-        )[:digits_list[-1]])
-
-    if shift_zero_digits_images:
-        empty = [i for i in range(len(digits_list)) if digits_list[i] == 0]
-        non_empty = [i for i in range(len(digits_list)) if digits_list[i] > 0]
-
-        images_list, digits_list = np.array(images_list), np.array(digits_list)
-        images_list = np.concatenate([
-            np.array([images_list[empty[0]]]), images_list[non_empty], images_list[empty[1:]]
-        ])
-        digits_list = np.concatenate([
-            np.array([digits_list[empty[0]]]), digits_list[non_empty], digits_list[empty[1:]]
-        ])
-
-    return images_list, digits_list, indices_list, positions_list, boxes_list, labels_list
-
-
 if __name__ == "__main__":
 
     DEFAULT_MAX_DIGITS = 1
     DEFAULT_MAX_IN_COMMON = 0
-    DEFAULT_IMAGES_PER_DIGIT = 20000
+    DEFAULT_IMAGES_PER_DIGIT = 60000
     DEFAULT_TEST_SET_SIZE = 1000
 
     MNIST_FOLDER = "mnist_data/"
-    MULTI_MNIST_FOLDER = "multi_mnist_data/"
+    MULTI_MNIST_FOLDER = "positional_mnist_data/"
 
     CANVAS_SIZE = 64
     IMAGE_SIZE = 28
