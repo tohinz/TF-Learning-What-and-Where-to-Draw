@@ -12,7 +12,7 @@ We use a modified MNIST data set for the experiment. The images are of size 64 x
 
 ## To Create the Data Set
 * run `python multi_mnist.py`
-* default values are set to 120 000 images, resolution of (64, 64, 1), with one (possibly stretched) MNIST digit placed somewhere in the image
+* default values are set to 600 000 images, resolution of (64, 64, 1), with one (possibly stretched) MNIST digit placed somewhere in the image
 * data gets stored in folder "positional_mnist_data/1.tfrecords"
 
 ## To Run the Experiment
