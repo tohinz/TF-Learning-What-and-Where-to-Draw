@@ -19,5 +19,10 @@ We use a modified MNIST data set for the experiment. The images are of size 64 x
 * run `python lwawtd.py`
 * to visualize the progress: `tensorboard --logdir log_cir/lwawtd/`
 
-## To Generated Images
+## To Generate Images
 * run `python lwawtd_generate.py --model path-to-model-weights`
+* this generates images of 10 x 10 sub images for each digit, where the x / y position and height / width of the bounding box increase with each row / column respectively
+* possible parameters are:
+    * `--digit int-value`: only generates the images containing the specified digit (0-9)
+    * `--draw_box`: draws the specified bounding box into the generated images
+* generated images are stored under "generated_images"
