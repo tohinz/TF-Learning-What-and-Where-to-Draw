@@ -49,3 +49,16 @@ We use a modified MNIST data set for the experiment. The images are of size 64 x
         * input: concatenation of global and local pathway
         * one dense layer with 512 units
         * output if image is real or generated
+* Generator:
+    * input noise and label are concatenated and reshaped (via a dense layer) to (4, 4, 128)
+    * global pathway:
+        * two deconv layers with stride two
+        * output is (16, 16, 64)
+    * local pathway:
+        * two deconv layers with stride two
+        * apply spatial transfomer network to crop to bounding box
+        * output is (16, 16, 64)
+    * final output:
+        * input: concatenation of global and local pathway (along channel axis)
+        * two deconv layers with stride two upsample the input to (64, 64, 32)
+        * final deconv layer produces output image (64, 64, 1)
