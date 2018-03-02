@@ -35,4 +35,17 @@ We use a modified MNIST data set for the experiment. The images are of size 64 x
 * Discriminator:
     * input image and label are concatenated (along channel axis)
     * two conv layers with stride two process the image 
-        * output of second conv layer: (16, 16, 64)
+        * output of second conv layer `d_x_conv_1`: (16, 16, 64)
+    * global pathway:
+        * input: `d_x_conv_1`
+        * two conv layers with stride two process the image
+        * output of global pathway: (4, 4, 128)
+    * local pathway:
+        * input: `d_x_conv_1`
+        * apply spatial transfomer network to crop to bounding box
+        * two conv layers with stride two process the content of the bounding box
+        * output of local pathway: (4, 4, 128)
+    * final output:
+        * input: concatenation of global and local pathway
+        * one dense layer with 512 units
+        * output if image is real or generated
