@@ -7,3 +7,12 @@ Tensorflow implementation of the NIPS 2016 paper ["Learning What and Where to Dr
 
 ## Requirements
 * Tensorflow 1.5.0
+
+## To Create the Data Set
+* run `python multi_mnist.py`
+* default values are set to 60 000 images, resolution of (64, 64, 1), with one MNIST digit placed somewhere in the image
+* data gets stored in folder "positional_mnist_data/1.tfrecords"
+
+## To Run the Experiment
+* run `python lwawtd.py`
+* to visualize the progress: `tensorboard --logdir log_cir/lwawtd/`
