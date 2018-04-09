@@ -8,6 +8,7 @@ import dateutil.tz
 import argparse
 from shutil import copyfile
 import math
+import csv
 
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -27,7 +28,7 @@ args = parser.parse_args()
 
 
 def read_hyperparameters(path):
-    reader = csv.reader(open(path+"/hyperparameters"+args.model_dir[-20:]+".csv", "rb"))
+    reader = csv.reader(open(path+"/hyperparameters"+args.model[-20:]+".csv", "rb"))
     dict = {}
     for row in reader:
         k, v = row
@@ -35,13 +36,13 @@ def read_hyperparameters(path):
 
     return dict
 
-hp_dict = read_hyperparameters(args.model_dir)
+hp_dict = read_hyperparameters(args.model)
 
 
 # hyperparameters
-Z_DIM = hp_dict["num_z"]                 # dimensionality of the z vector (input to G, incompressible noise
+Z_DIM = int(hp_dict["num_z"]      )      # dimensionality of the z vector (input to G, incompressible noise
 LABEL_DIM = 10                           # dimensionality of the label vector (axis 1)
-MODEL = args.model + "iteration.ckpt-" + str(args.iteration)
+MODEL = args.model + "/iteration.ckpt-" + str(args.iteration)
 if args.digit is not None:
     DIGIT = args.digit
 
@@ -253,7 +254,10 @@ def create_image(images, title, bbox):
             ax.set_xticks([])
             ax.set_yticks([])
     fig.tight_layout(pad=0)
-    fig.savefig(log_dir+"/"+title+".png")
+    if args.draw_bbox:
+        fig.savefig(log_dir + "/" + title + "_bbox.png")
+    else:
+        fig.savefig(log_dir+"/"+title+".png")
 
 
 f, axarr = plt.subplots(2, 10)
