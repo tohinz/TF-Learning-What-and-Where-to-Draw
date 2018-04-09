@@ -28,6 +28,13 @@ We use a modified MNIST data set for the experiment. The images are of size 64 x
     * `--draw_box`: draws the specified bounding box into the generated images
 * generated images are stored under "generated_images"
 
+| Without Bounding Box | With Bounding Box |
+|---|---|
+| ![](./images/digit_0.png) | (./images/digit_0_bbox.png) |
+| ![](./images/digit_3.png) | (./images/digit_3_bbox.png) |
+| ![](./images/digit_4.png) | (./images/digit_4_bbox.png) |
+| ![](./images/digit_8.png) | (./images/digit_8_bbox.png) |
+
 ## Differences to the Paper
 * different data set used 
     * modified MNIST for quicker/easier training
