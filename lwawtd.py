@@ -306,7 +306,7 @@ theta_D = [var for var in all_vars if var.name.startswith('d_')]
 
 
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-boundaries = {0: [20000, 20000, 20000], 1: [5000, 10000, 15000], 2: [2500, 5000, 10000], 3: [10000, 15000, 20000]}
+boundaries = {0: [20000, 30000, 40000], 1: [5000, 10000, 15000], 2: [2500, 5000, 10000], 3: [10000, 15000, 20000]}
 boundaries = boundaries[args.boundaries]
 
 values_D = {0: [LR_D, LR_D / 2.0, LR_D / 4.0, LR_D / 8.0], 1: [LR_D, LR_D / 5.0, LR_D / 10.0, LR_D / 20.0]}
