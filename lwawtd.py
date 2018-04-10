@@ -19,18 +19,18 @@ from utils import *
 from tb_visualization import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--max_iter", help="Maximum number of iterations", type=int, default=20000)
+parser.add_argument("--max_iter", help="Maximum number of iterations", type=int, default=30000)
 parser.add_argument("--batch_size", help="The size of the minibatch", type=int, default=64)
-parser.add_argument("--lr_d", help="Discriminator Learning Rate", type=float, default=1e-4)
+parser.add_argument("--lr_d", help="Discriminator Learning Rate", type=float, default=3e-4)
 parser.add_argument("--lr_g", help="Generator/Encoder Learning Rate", type=float, default=1e-4)
 parser.add_argument("--beta1_g", help="Generator Beta 1 (for Adam Optimizer)", type=float, default=0.5)
 parser.add_argument("--beta1_d", help="Discriminator Beta 1 (for Adam Optimizer)", type=float, default=0.5)
 parser.add_argument("--num_z", help="Number of noise variables", type=int, default=100)
-parser.add_argument("--d_activation", help="Activation function of Discriminator", type=str, default="lrelu")
+parser.add_argument("--d_activation", help="Activation function of Discriminator", type=str, default="elu")
 parser.add_argument("--g_activation", help="Activation function of Generator", type=str, default="relu")
 parser.add_argument("--dataset", help="Path to the data set you want to use", type=str,
                     default="positional_mnist_data/1.tfrecords")
-parser.add_argument("--weight_init", help="Values for weight init method", type=int, default=0)
+parser.add_argument("--weight_init", help="Values for weight init method", type=int, default=1)
 parser.add_argument("--boundaries", help="Boundaries for LR decrease", type=int, default=0)
 parser.add_argument("--values", help="Values for LR decrease", type=int, default=0)
 parser.add_argument("--g_train", help="How often generator is trained during each iteration", type=int, default=1)
@@ -306,7 +306,7 @@ theta_D = [var for var in all_vars if var.name.startswith('d_')]
 
 
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-boundaries = {0: [20000, 30000, 40000], 1: [5000, 10000, 15000], 2: [2500, 5000, 10000], 3: [10000, 15000, 20000]}
+boundaries = {0: [20000, 30000, 40000], 1: [5000, 10000, 15000], 2: [10000, 15000, 20000]}
 boundaries = boundaries[args.boundaries]
 
 values_D = {0: [LR_D, LR_D / 2.0, LR_D / 4.0, LR_D / 8.0], 1: [LR_D, LR_D / 5.0, LR_D / 10.0, LR_D / 20.0]}
@@ -350,6 +350,9 @@ threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
 print("Start training")
 for iteration in range(1, MAX_ITER + 1):
+    a, b, c = sess.run([X, Y, bbox])
+    print(a)
+    exit()
     # train D and G
     if iteration % 1000 != 0:
         z_mb, Y_gen, box_generated = sample_generator_input(BATCH_SIZE, Z_DIM)
