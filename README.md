@@ -18,7 +18,7 @@ We use a modified MNIST data set for the experiment. The images are of size 64 x
 
 ## To Run the Experiment
 * run `python lwawtd.py`
-* to visualize the progress: `tensorboard --logdir log_cir/lwawtd/`
+* to visualize the progress: `tensorboard --logdir log_dir/lwawtd/`
 
 ## To Generate Images
 * run `python lwawtd_generate.py --model path-to-model-weights`
